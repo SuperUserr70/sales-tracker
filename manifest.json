@@ -1,0 +1,16 @@
+{
+  "name": "LUMAX ENTERPRISES",
+  "short_name": "LUMAX",
+  "start_url": "./sales_tracker.html",
+  "display": "standalone",
+  "background_color": "#0f766e",
+  "theme_color": "#0f766e",
+  "icons": [
+    {
+      "src": "icon.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}
