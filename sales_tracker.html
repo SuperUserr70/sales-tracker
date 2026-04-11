@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sales Tracker — LumaxTech</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.jpg">
+  <link rel="apple-touch-icon" href="icon.jpg">
+  <meta name="theme-color" content="#0f766e">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    :root {
+      --bg:       #0b1120;
+      --surface:  #131c2e;
+      --card:     #1a2540;
+      --input-bg: #0d1626;
+      --border:   #243050;
+      --text:     #e2e8f0;
+      --muted:    #64748b;
+      --subtle:   #94a3b8;
+      --accent:   #22c55e;
+      --accent-d: #16a34a;
+      --danger:   #ef4444;
+      --danger-d: #dc2626;
+      --blue:     #3b82f6;
+      --amber:    #f59e0b;
+      --radius:   12px;
+      --radius-sm:8px;
+    }
+
+    html { font-size: clamp(13px, 1.8vw, 15px); }
+    body  { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* HEADER */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .header-brand { display: flex; align-items: center; gap: 10px; }
+    .header-brand .logo {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--accent); display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 1rem; color: #000;
+    }
+    .header-brand h1 { font-size: 1rem; font-weight: 600; margin: 0; letter-spacing: 0.01em; }
+    .header-actions { display: flex; gap: 8px; }
+
+    /* BUTTONS */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 16px; border: none; border-radius: 8px;
+      font-size: 0.82rem; font-weight: 500; cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--accent);  color: #000; }
+    .btn-primary:hover { background: var(--accent-d); }
+    .btn-ghost   { background: var(--card); color: var(--subtle); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--border); }
+    .btn-danger  { background: var(--danger); color: #fff; }
+    .btn-danger:hover { background: var(--danger-d); }
+    .btn-sm { padding: 5px 12px; font-size: 0.78rem; }
+    .btn-edit { background: #1e3a5f; color: #93c5fd; border: 1px solid #2563eb44; }
+    .btn-edit:hover { background: #1d4ed844; }
+    .btn-del  { background: #3f1d1d; color: #fca5a5; border: 1px solid #ef444433; }
+    .btn-del:hover { background: #7f1d1d44; }
+
+    /* LAYOUT */
+    .page { max-width: 960px; margin: 0 auto; padding: 20px 16px 40px; display: flex; flex-direction: column; gap: 20px; }
+
+    /* PANEL */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 14px 18px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .panel-header .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+    .panel-header h2 { margin: 0; font-size: 0.88rem; font-weight: 600; color: var(--text); }
+    .panel-body { padding: 16px 18px; }
+
+    /* STAT CARDS */
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+    }
+    .stat-card .label { font-size: 0.72rem; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-card .value { font-size: 1.4rem; font-weight: 700; line-height: 1; }
+    .stat-card.green .value { color: var(--accent); }
+    .stat-card.blue  .value { color: var(--blue); }
+    .stat-card.amber .value { color: var(--amber); }
+
+    /* FORM */
+    .date-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .date-row label { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+    input[type="date"] {
+      background: var(--input-bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 7px 12px; font-size: 0.85rem; outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="date"]:focus { border-color: var(--accent); }
+    input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
+
+    .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-bottom: 14px; }
+    .product-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+    }
+    .product-card .p-name  { font-size: 0.82rem; font-weight: 600; margin-bottom: 2px; }
+    .product-card .p-price { font-size: 0.72rem; color: var(--accent); margin-bottom: 10px; }
+    .product-card .inputs-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .product-card .field label { display: block; font-size: 0.68rem; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .product-card .field input {
+      width: 100%; background: var(--input-bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 6px 8px; font-size: 0.85rem; text-align: center; outline: none;
+      transition: border-color 0.2s;
+    }
+    .product-card .field input:focus { border-color: var(--accent); }
+
+    .expense-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .expense-row label { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+    .expense-row input {
+      background: var(--input-bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 7px 12px; font-size: 0.85rem; outline: none; width: 200px;
+      transition: border-color 0.2s;
+    }
+    .expense-row input:focus { border-color: var(--accent); }
+
+    .save-row { display: flex; justify-content: center; }
+
+    /* ENTRIES */
+    #tableBody { display: flex; flex-direction: column; gap: 10px; }
+    .entry-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    .entry-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .entry-date { font-size: 0.82rem; font-weight: 600; color: var(--subtle); }
+    .entry-actions { display: flex; gap: 6px; }
+    .entry-rows { padding: 10px 14px; display: flex; flex-direction: column; gap: 0; }
+    .entry-row {
+      display: grid; grid-template-columns: 1fr auto;
+      align-items: center; gap: 8px;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem;
+    }
+    .entry-row:last-child { border-bottom: none; }
+    .entry-row .prod-name { font-weight: 500; }
+    .entry-row .prod-meta { color: var(--muted); font-size: 0.73rem; margin-top: 2px; }
+    .entry-row .prod-rev  { font-weight: 600; color: var(--accent); white-space: nowrap; }
+    .entry-footer {
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      padding: 10px 14px;
+      background: var(--input-bg);
+      border-top: 1px solid var(--border);
+      gap: 8px;
+    }
+    .ef-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
+    .ef-val   { font-size: 0.9rem; font-weight: 700; }
+    .ef-revenue { color: var(--blue); }
+    .ef-expense { color: var(--amber); }
+    .ef-net     { color: var(--accent); }
+
+    /* CHART */
+    .chart-wrap { position: relative; width: 100%; height: 260px; }
+
+    /* EMPTY */
+    .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 0.85rem; }
+
+    /* CONFIRM DIALOG */
+    #confirmOverlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.65);
+      justify-content: center; align-items: center; z-index: 999;
+    }
+    #confirmOverlay.show { display: flex; }
+    #confirmBox {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px 24px; width: 300px; text-align: center;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    #confirmBox .icon { font-size: 2rem; margin-bottom: 4px; }
+    #confirmBox h3 { margin: 0; font-size: 1rem; font-weight: 600; }
+    #confirmBox p  { margin: 0; font-size: 0.82rem; color: var(--muted); }
+    #confirmBox .btn-row { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
+
+    /* TOAST */
+    #toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+      background: #1e293b; border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 20px;
+      font-size: 0.82rem; color: var(--text);
+      transition: transform 0.3s ease;
+      z-index: 9999; white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* LOGIN */
+    #loginScreen {
+      display: flex; justify-content: center; align-items: center;
+      height: 100vh; flex-direction: column; gap: 0;
+      background: var(--bg);
+    }
+    .login-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px 28px; width: 300px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .login-logo {
+      width: 48px; height: 48px; border-radius: 12px;
+      background: var(--accent); display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 1.3rem; color: #000; margin: 0 auto 4px;
+    }
+    .login-box h2 { margin: 0; font-size: 1.1rem; font-weight: 600; text-align: center; }
+    .login-box p  { margin: 0; font-size: 0.78rem; color: var(--muted); text-align: center; }
+    .login-input {
+      background: var(--input-bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px 14px; font-size: 0.88rem; outline: none; width: 100%;
+      transition: border-color 0.2s;
+    }
+    .login-input:focus { border-color: var(--accent); }
+    .login-box .btn { width: 100%; justify-content: center; padding: 10px; font-size: 0.9rem; }
+
+    .footer { text-align: center; padding: 8px; font-size: 0.7rem; color: var(--muted); }
+
+    @media (max-width: 500px) {
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .products-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="confirmOverlay">
+  <div id="confirmBox">
+    <div class="icon">🗑️</div>
+    <h3>Delete Entry</h3>
+    <p>This will permanently delete all records for this date.</p>
+    <div class="btn-row">
+      <button class="btn btn-ghost btn-sm" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">S</div>
+    <h2>Sales Tracker</h2>
+    <p>Sign in to continue</p>
+    <input class="login-input" type="password" id="password" placeholder="Enter password" onkeydown="if(event.key==='Enter') login()">
+    <button class="btn btn-primary" onclick="login()">Sign In</button>
+  </div>
+  <div class="footer" style="margin-top:16px;">Powered by LumaxTech</div>
+</div>
+
+<div id="app" style="display:none;">
+
+  <header>
+    <div class="header-brand">
+      <div class="logo">S</div>
+      <h1>Sales Tracker</h1>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost btn-sm" onclick="exportCSV()">&#11015; Export CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="logout()">Sign Out</button>
+    </div>
+  </header>
+
+  <div class="page">
+
+    <div class="stats-grid">
+      <div class="stat-card blue">
+        <div class="label">Today's Revenue</div>
+        <div class="value" id="statToday">&#8377;0</div>
+      </div>
+      <div class="stat-card green">
+        <div class="label">This Month</div>
+        <div class="value" id="statMonth">&#8377;0</div>
+      </div>
+      <div class="stat-card amber">
+        <div class="label">Total Net</div>
+        <div class="value" id="statNet">&#8377;0</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="dot"></div>
+        <h2 id="formTitle">Add Entry</h2>
+      </div>
+      <div class="panel-body">
+        <div class="date-row">
+          <label>Date</label>
+          <input type="date" id="date" />
+        </div>
+        <div class="products-grid" id="inputTable"></div>
+        <div class="expense-row">
+          <label>Expense (&#8377;)</label>
+          <input type="number" id="expense" placeholder="0" min="0" />
+        </div>
+        <div class="save-row">
+          <button class="btn btn-primary" onclick="addBulkEntry()" style="min-width:140px; justify-content:center;">Save Entry</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="dot" style="background:var(--blue);"></div>
+        <h2>Entries</h2>
+      </div>
+      <div class="panel-body" style="padding:12px 14px;">
+        <div id="tableBody"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="dot" style="background:var(--amber);"></div>
+        <h2>Monthly Revenue</h2>
+      </div>
+      <div class="panel-body">
+        <div class="chart-wrap">
+          <canvas id="chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">Powered by LumaxTech</div>
+</div>
+
+<script>
+const APP_PASSWORD = "8003";
+
+function login(){
+  if(document.getElementById('password').value === APP_PASSWORD){
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    renderAll();
+  } else {
+    toast('Wrong password');
+  }
+}
+
+function logout(){
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('password').value = '';
+}
+
+const products = [
+  {name:"1L Water",      price:100},
+  {name:"1/2 Water",     price:130},
+  {name:"250ML Water",   price:100},
+  {name:"Campa PowerUp", price:230},
+  {name:"Campa Lemon",   price:230},
+  {name:"Campa Neo",   price:230},
+  {name:"Campa Orange",   price:230},
+  {name:"Badam Milk",    price:530},
+  {name:"Water Packets", price:100}
+];
+
+let data     = JSON.parse(localStorage.getItem('salesData')) || [];
+let expenses = JSON.parse(localStorage.getItem('expenses'))  || {};
+let chartInstance = null;
+
+function renderInputTable(){
+  const el = document.getElementById('inputTable');
+  el.innerHTML = '';
+  products.forEach(function(p, i){
+    el.innerHTML += '<div class="product-card">' +
+      '<div class="p-name">' + p.name + '</div>' +
+      '<div class="p-price">&#8377;' + p.price + ' / unit</div>' +
+      '<div class="inputs-row">' +
+        '<div class="field"><label>Sent</label><input id="s' + i + '" type="number" min="0" placeholder="0"></div>' +
+        '<div class="field"><label>Returned</label><input id="r' + i + '" type="number" min="0" placeholder="0"></div>' +
+      '</div></div>';
+  });
+}
+
+function addBulkEntry(){
+  var date = document.getElementById('date').value;
+  if(!date){ toast('Please select a date'); return; }
+
+  data = data.filter(function(d){ return d.date !== date; });
+
+  var expVal = parseInt(document.getElementById('expense').value);
+  if(!isNaN(expVal) && expVal >= 0) expenses[date] = expVal;
+  else delete expenses[date];
+
+  var added = 0;
+  products.forEach(function(p, i){
+    var s = parseInt(document.getElementById('s'+i).value) || 0;
+    var r = parseInt(document.getElementById('r'+i).value) || 0;
+    if(!s && !r) return;
+    var sold = s - r;
+    data.push({id: Date.now()+Math.random(), date:date, product:p.name, price:p.price, sent:s, returned:r, sold:sold, revenue:sold*p.price});
+    added++;
+  });
+
+  if(added === 0){ toast('Enter at least one product quantity'); return; }
+
+  localStorage.setItem('salesData', JSON.stringify(data));
+  localStorage.setItem('expenses',  JSON.stringify(expenses));
+  resetForm();
+  renderAll();
+  toast('Entry saved successfully');
+}
+
+function resetForm(){
+  document.getElementById('date').value    = '';
+  document.getElementById('expense').value = '';
+  document.getElementById('formTitle').textContent = 'Add Entry';
+  products.forEach(function(_, i){
+    document.getElementById('s'+i).value = '';
+    document.getElementById('r'+i).value = '';
+  });
+}
+
+function editDay(date){
+  var dayEntries = data.filter(function(d){ return d.date === date; });
+  if(!dayEntries.length) return;
+
+  document.getElementById('date').value = date;
+  document.getElementById('formTitle').textContent = 'Editing — ' + formatDate(date);
+
+  products.forEach(function(_, i){
+    document.getElementById('s'+i).value = '';
+    document.getElementById('r'+i).value = '';
+  });
+  dayEntries.forEach(function(e){
+    var idx = products.findIndex(function(p){ return p.name === e.product; });
+    if(idx !== -1){
+      document.getElementById('s'+idx).value = e.sent;
+      document.getElementById('r'+idx).value = e.returned;
+    }
+  });
+  document.getElementById('expense').value = expenses[date] || '';
+  document.querySelector('.panel').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+var pendingDeleteDate = null;
+
+function deleteDay(date){
+  pendingDeleteDate = date;
+  document.getElementById('confirmOverlay').classList.add('show');
+}
+function closeConfirm(){
+  pendingDeleteDate = null;
+  document.getElementById('confirmOverlay').classList.remove('show');
+}
+function confirmDelete(){
+  if(!pendingDeleteDate) return;
+  data = data.filter(function(d){ return d.date !== pendingDeleteDate; });
+  delete expenses[pendingDeleteDate];
+  localStorage.setItem('salesData', JSON.stringify(data));
+  localStorage.setItem('expenses',  JSON.stringify(expenses));
+  closeConfirm();
+  renderAll();
+  toast('Entry deleted');
+}
+
+function renderTable(){
+  var el = document.getElementById('tableBody');
+  el.innerHTML = '';
+
+  var grouped = {};
+  data.forEach(function(d){
+    if(!grouped[d.date]) grouped[d.date] = [];
+    grouped[d.date].push(d);
+  });
+
+  var dates = Object.keys(grouped).sort().reverse();
+  if(!dates.length){
+    el.innerHTML = '<div class="empty">No entries yet. Add your first sale above.</div>';
+    return;
+  }
+
+  dates.forEach(function(date){
+    var total = 0;
+    var rows  = '';
+    grouped[date].forEach(function(d){
+      total += d.revenue;
+      rows += '<div class="entry-row">' +
+        '<div><div class="prod-name">' + d.product + '</div>' +
+        '<div class="prod-meta">Sent: ' + d.sent + ' &nbsp;|&nbsp; Returned: ' + d.returned + ' &nbsp;|&nbsp; Sold: ' + d.sold + '</div></div>' +
+        '<div class="prod-rev">&#8377;' + d.revenue.toLocaleString() + '</div></div>';
+    });
+
+    var exp = expenses[date] || 0;
+    var net = total - exp;
+
+    el.innerHTML += '<div class="entry-card">' +
+      '<div class="entry-head">' +
+        '<div class="entry-date">' + formatDate(date) + '</div>' +
+        '<div class="entry-actions">' +
+          '<button class="btn btn-edit btn-sm" onclick="editDay(\'' + date + '\')">Edit</button>' +
+          '<button class="btn btn-del btn-sm" data-date="' + date + '" onclick="deleteDay(this.getAttribute(\'data-date\'))">Delete</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="entry-rows">' + rows + '</div>' +
+      '<div class="entry-footer">' +
+        '<div><div class="ef-label">Revenue</div><div class="ef-val ef-revenue">&#8377;' + total.toLocaleString() + '</div></div>' +
+        '<div><div class="ef-label">Expense</div><div class="ef-val ef-expense">&#8377;' + exp.toLocaleString() + '</div></div>' +
+        '<div><div class="ef-label">Net</div><div class="ef-val ef-net">&#8377;' + net.toLocaleString() + '</div></div>' +
+      '</div></div>';
+  });
+}
+
+function renderStats(){
+  var today = new Date().toISOString().slice(0,10);
+  var month = today.slice(0,7);
+  var todayRev = 0, monthRev = 0, totalNet = 0;
+  var grouped = {};
+  data.forEach(function(d){
+    if(d.date === today) todayRev += d.revenue;
+    if(d.date.startsWith(month)) monthRev += d.revenue;
+    if(!grouped[d.date]) grouped[d.date] = 0;
+    grouped[d.date] += d.revenue;
+  });
+  Object.keys(grouped).forEach(function(dt){
+    totalNet += grouped[dt] - (expenses[dt] || 0);
+  });
+  document.getElementById('statToday').textContent = '&#8377;' + todayRev.toLocaleString();
+  document.getElementById('statMonth').textContent = '&#8377;' + monthRev.toLocaleString();
+  document.getElementById('statNet').textContent   = '&#8377;' + totalNet.toLocaleString();
+
+  // Use innerHTML for rupee symbol
+  document.getElementById('statToday').innerHTML = '&#8377;' + todayRev.toLocaleString();
+  document.getElementById('statMonth').innerHTML = '&#8377;' + monthRev.toLocaleString();
+  document.getElementById('statNet').innerHTML   = '&#8377;' + totalNet.toLocaleString();
+}
+
+function renderChart(){
+  var m = {};
+  data.forEach(function(d){
+    var k = d.date.slice(0,7);
+    m[k] = (m[k]||0) + d.revenue;
+  });
+
+  if(chartInstance) chartInstance.destroy();
+
+  var labels = Object.keys(m).sort();
+  var values = labels.map(function(k){ return m[k]; });
+
+  var ctx = document.getElementById('chart').getContext('2d');
+  chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Revenue',
+        data: values,
+        backgroundColor: 'rgba(34,197,94,0.2)',
+        borderColor: '#22c55e',
+        borderWidth: 2,
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx){ return ' \u20B9' + ctx.raw.toLocaleString(); }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: '#1e3050' },
+          ticks: { color: '#64748b', font: { size: 11 } }
+        },
+        y: {
+          grid: { color: '#1e3050' },
+          ticks: {
+            color: '#64748b', font: { size: 11 },
+            callback: function(v){ return '\u20B9' + (v >= 1000 ? (v/1000).toFixed(0)+'k' : v); }
+          }
+        }
+      }
+    }
+  });
+}
+
+function exportCSV(){
+  if(!data.length){ toast('No data to export'); return; }
+  var csv = "Date,Product,Sent,Returned,Sold,Revenue\n";
+  data.forEach(function(d){
+    csv += d.date+','+d.product+','+d.sent+','+d.returned+','+d.sold+','+d.revenue+'\n';
+  });
+  var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'sales_' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  toast('CSV exported');
+}
+
+function renderAll(){ renderStats(); renderTable(); renderChart(); }
+
+function formatDate(d){
+  var dt = new Date(d + 'T00:00:00');
+  return dt.toLocaleDateString('en-IN', {weekday:'short', day:'numeric', month:'short', year:'numeric'});
+}
+
+function toast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2500);
+}
+
+renderInputTable();
+</script>
+</body>
+</html>
