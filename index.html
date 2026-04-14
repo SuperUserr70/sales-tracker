@@ -146,6 +146,19 @@
     }
     .expense-row input:focus { border-color: var(--accent); }
 
+    /* NOTES */
+    .notes-row { margin-bottom: 16px; }
+    .notes-row label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; }
+    .notes-row textarea {
+      width: 100%; background: var(--input-bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px 12px; font-size: 0.85rem; outline: none;
+      resize: vertical; min-height: 80px; font-family: inherit;
+      transition: border-color 0.2s; line-height: 1.5;
+    }
+    .notes-row textarea:focus { border-color: var(--accent); }
+    .notes-row textarea::placeholder { color: var(--muted); }
+
     .save-row { display: flex; justify-content: center; }
 
     /* ENTRIES */
@@ -188,6 +201,16 @@
     .ef-revenue { color: var(--blue); }
     .ef-expense { color: var(--amber); }
     .ef-net     { color: var(--accent); }
+
+    /* ENTRY NOTES */
+    .entry-notes {
+      padding: 10px 14px;
+      border-top: 1px solid var(--border);
+      font-size: 0.78rem; color: var(--subtle);
+      line-height: 1.5; white-space: pre-wrap;
+      background: var(--surface);
+    }
+    .entry-notes .notes-lbl { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
 
     /* CHART */
     .chart-wrap { position: relative; width: 100%; height: 260px; }
@@ -334,6 +357,10 @@
           <label>Expense (&#8377;)</label>
           <input type="number" id="expense" placeholder="0" min="0" />
         </div>
+        <div class="notes-row">
+          <label>Remarks / Notes</label>
+          <textarea id="remarks" placeholder="Write any notes or remarks for this entry..."></textarea>
+        </div>
         <div class="save-row">
           <button class="btn btn-primary" onclick="addBulkEntry()" style="min-width:140px; justify-content:center;">Save Entry</button>
         </div>
@@ -388,6 +415,7 @@ function logout(){
 
 const products = [
   {name:"1L Water",      price:100},
+  {name:"2L Water",      price:100},
   {name:"1/2 Water",     price:130},
   {name:"250ML Water",   price:100},
   {name:"Campa PowerUp", price:230},
@@ -400,6 +428,7 @@ const products = [
 
 let data     = JSON.parse(localStorage.getItem('salesData')) || [];
 let expenses = JSON.parse(localStorage.getItem('expenses'))  || {};
+let remarks  = JSON.parse(localStorage.getItem('remarks'))   || {};
 let chartInstance = null;
 
 function renderInputTable(){
@@ -426,6 +455,10 @@ function addBulkEntry(){
   if(!isNaN(expVal) && expVal >= 0) expenses[date] = expVal;
   else delete expenses[date];
 
+  var remarkVal = document.getElementById('remarks').value.trim();
+  if(remarkVal) remarks[date] = remarkVal;
+  else delete remarks[date];
+
   var added = 0;
   products.forEach(function(p, i){
     var s = parseInt(document.getElementById('s'+i).value) || 0;
@@ -440,6 +473,7 @@ function addBulkEntry(){
 
   localStorage.setItem('salesData', JSON.stringify(data));
   localStorage.setItem('expenses',  JSON.stringify(expenses));
+  localStorage.setItem('remarks',   JSON.stringify(remarks));
   resetForm();
   renderAll();
   toast('Entry saved successfully');
@@ -448,6 +482,7 @@ function addBulkEntry(){
 function resetForm(){
   document.getElementById('date').value    = '';
   document.getElementById('expense').value = '';
+  document.getElementById('remarks').value = '';
   document.getElementById('formTitle').textContent = 'Add Entry';
   products.forEach(function(_, i){
     document.getElementById('s'+i).value = '';
@@ -474,6 +509,7 @@ function editDay(date){
     }
   });
   document.getElementById('expense').value = expenses[date] || '';
+  document.getElementById('remarks').value  = remarks[date]  || '';
   document.querySelector('.panel').scrollIntoView({behavior:'smooth', block:'start'});
 }
 
@@ -491,8 +527,10 @@ function confirmDelete(){
   if(!pendingDeleteDate) return;
   data = data.filter(function(d){ return d.date !== pendingDeleteDate; });
   delete expenses[pendingDeleteDate];
+  delete remarks[pendingDeleteDate];
   localStorage.setItem('salesData', JSON.stringify(data));
   localStorage.setItem('expenses',  JSON.stringify(expenses));
+  localStorage.setItem('remarks',   JSON.stringify(remarks));
   closeConfirm();
   renderAll();
   toast('Entry deleted');
@@ -527,6 +565,11 @@ function renderTable(){
 
     var exp = expenses[date] || 0;
     var net = total - exp;
+    var note = remarks[date] || '';
+
+    var notesHtml = note
+      ? '<div class="entry-notes"><div class="notes-lbl">Remarks</div>' + escapeHtml(note) + '</div>'
+      : '';
 
     el.innerHTML += '<div class="entry-card">' +
       '<div class="entry-head">' +
@@ -541,8 +584,14 @@ function renderTable(){
         '<div><div class="ef-label">Revenue</div><div class="ef-val ef-revenue">&#8377;' + total.toLocaleString() + '</div></div>' +
         '<div><div class="ef-label">Expense</div><div class="ef-val ef-expense">&#8377;' + exp.toLocaleString() + '</div></div>' +
         '<div><div class="ef-label">Net</div><div class="ef-val ef-net">&#8377;' + net.toLocaleString() + '</div></div>' +
-      '</div></div>';
+      '</div>' +
+      notesHtml +
+      '</div>';
   });
+}
+
+function escapeHtml(str){
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function renderStats(){
@@ -559,11 +608,7 @@ function renderStats(){
   Object.keys(grouped).forEach(function(dt){
     totalNet += grouped[dt] - (expenses[dt] || 0);
   });
-  document.getElementById('statToday').textContent = '&#8377;' + todayRev.toLocaleString();
-  document.getElementById('statMonth').textContent = '&#8377;' + monthRev.toLocaleString();
-  document.getElementById('statNet').textContent   = '&#8377;' + totalNet.toLocaleString();
 
-  // Use innerHTML for rupee symbol
   document.getElementById('statToday').innerHTML = '&#8377;' + todayRev.toLocaleString();
   document.getElementById('statMonth').innerHTML = '&#8377;' + monthRev.toLocaleString();
   document.getElementById('statNet').innerHTML   = '&#8377;' + totalNet.toLocaleString();
@@ -625,9 +670,10 @@ function renderChart(){
 
 function exportCSV(){
   if(!data.length){ toast('No data to export'); return; }
-  var csv = "Date,Product,Sent,Returned,Sold,Revenue\n";
+  var csv = "Date,Product,Sent,Returned,Sold,Revenue,Remarks\n";
   data.forEach(function(d){
-    csv += d.date+','+d.product+','+d.sent+','+d.returned+','+d.sold+','+d.revenue+'\n';
+    var note = (remarks[d.date] || '').replace(/,/g,' ').replace(/\n/g,' ');
+    csv += d.date+','+d.product+','+d.sent+','+d.returned+','+d.sold+','+d.revenue+',"'+note+'"\n';
   });
   var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
   var a = document.createElement('a');
